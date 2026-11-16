@@ -1,6 +1,7 @@
 <?php
-require_once "../config/database.php";
 require_once "../includes/auth_check.php";
+require_once "../includes/csrf.php";
+require_once "../config/database.php";
 
 requireRole('patient');
 
@@ -8,6 +9,8 @@ $user_id = $_SESSION['user_id'];
 $errors = [];
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    validateCSRFToken();
     $medicine_name = trim($_POST['medicine_name'] ?? '');
     $dosage = trim($_POST['dosage'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -93,6 +96,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <?php endif; ?>
 
             <form method="POST">
+                <input
+    type="hidden"
+    name="csrf_token"
+    value="<?= htmlspecialchars(generateCSRFToken()) ?>"
+>
 
                 <div class="mb-3">
                     <label class="form-label">Nama Obat</label>

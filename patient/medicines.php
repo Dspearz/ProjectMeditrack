@@ -1,21 +1,21 @@
 <?php
 require_once "../config/database.php";
 require_once "../includes/auth_check.php";
+require_once "../includes/csrf.php";
 
 requireRole('patient');
 
 $user_id = $_SESSION['user_id'];
-
-// Mengambil input pencarian dan filter
 $search = trim($_GET['search'] ?? '');
 $status = $_GET['status'] ?? '';
 $sort = $_GET['sort'] ?? 'newest';
 
 // Validasi filter
-if (!in_array($status, ['', 'active', 'completed'])) {
+if (!in_array($status, ['', 'active', 'completed'], true)) {
     $status = '';
 }
 
+// Pengurutan yang diperbolehkan
 $allowedSort = [
     'newest' => 'created_at DESC',
     'oldest' => 'created_at ASC',
@@ -98,10 +98,12 @@ $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <div class="alert alert-success">
                 Data obat berhasil ditambahkan!
             </div>
+
         <?php elseif ($_GET['success'] === 'updated'): ?>
             <div class="alert alert-success">
                 Data obat berhasil diperbarui!
             </div>
+
         <?php elseif ($_GET['success'] === 'deleted'): ?>
             <div class="alert alert-success">
                 Data obat berhasil dihapus!
@@ -113,6 +115,10 @@ $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php if (isset($_GET['error']) && $_GET['error'] === 'notfound'): ?>
         <div class="alert alert-warning">
             Data obat tidak ditemukan.
+        </div>
+    <?php elseif (isset($_GET['error']) && $_GET['error'] === 'invalid'): ?>
+        <div class="alert alert-warning">
+            ID obat tidak valid.
         </div>
     <?php endif; ?>
 
@@ -137,9 +143,11 @@ $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <label class="form-label">Status Obat</label>
                     <select name="status" class="form-select">
                         <option value="">Semua Status</option>
+
                         <option value="active" <?= $status === 'active' ? 'selected' : '' ?>>
                             Aktif
                         </option>
+
                         <option value="completed" <?= $status === 'completed' ? 'selected' : '' ?>>
                             Selesai
                         </option>
@@ -149,15 +157,19 @@ $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="col-md-3">
                     <label class="form-label">Urutkan</label>
                     <select name="sort" class="form-select">
+
                         <option value="newest" <?= $sort === 'newest' ? 'selected' : '' ?>>
                             Terbaru
                         </option>
+
                         <option value="oldest" <?= $sort === 'oldest' ? 'selected' : '' ?>>
                             Terlama
                         </option>
+
                         <option value="name" <?= $sort === 'name' ? 'selected' : '' ?>>
                             Nama Obat (A-Z)
                         </option>
+
                     </select>
                 </div>
 
@@ -224,6 +236,7 @@ $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     </td>
 
                                     <td>
+
                                         <?php if ($medicine['medicine_status'] === 'active'): ?>
 
                                             <span class="badge bg-success">
@@ -243,16 +256,18 @@ $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                             </span>
 
                                         <?php endif; ?>
+
                                     </td>
 
                                     <td>
 
                                         <a
-                                            href="edit_medicine.php?id=<?= $medicine['id'] ?>"
+                                            href="edit_medicine.php?id=<?= htmlspecialchars($medicine['id']) ?>"
                                             class="btn btn-sm btn-warning">
                                             Edit
                                         </a>
 
+                                        <!-- Form Hapus dengan CSRF -->
                                         <form
                                             action="delete_medicine.php"
                                             method="POST"
@@ -263,6 +278,12 @@ $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 type="hidden"
                                                 name="id"
                                                 value="<?= htmlspecialchars($medicine['id']) ?>"
+                                            >
+
+                                            <input
+                                                type="hidden"
+                                                name="csrf_token"
+                                                value="<?= htmlspecialchars(generateCSRFToken()) ?>"
                                             >
 
                                             <button

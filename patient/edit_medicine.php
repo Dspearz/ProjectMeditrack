@@ -1,6 +1,7 @@
 <?php
 require_once "../config/database.php";
 require_once "../includes/auth_check.php";
+require_once "../includes/csrf.php";
 
 requireRole('patient');
 
@@ -15,7 +16,7 @@ if (!$id || $id < 1) {
     exit;
 }
 
-// Ambil data obat milik pasien yang sedang login
+// Ambil data obat milik pasien yang login
 $stmt = $pdo->prepare("
     SELECT * FROM medicines
     WHERE id = ? AND user_id = ?
@@ -31,6 +32,10 @@ if (!$medicine) {
 
 // Proses pembaruan data
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    // Validasi CSRF
+    validateCSRFToken();
+
     $medicine_name = trim($_POST['medicine_name'] ?? '');
     $dosage = trim($_POST['dosage'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -49,6 +54,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $errors[] = "Tanggal mulai wajib diisi.";
     }
 
+    // Validasi format tanggal
+    $startValid = DateTime::createFromFormat('!Y-m-d', $start_date);
+
+    if (!$startValid || $startValid->format('Y-m-d') !== $start_date) {
+        $errors[] = "Format tanggal mulai tidak valid.";
+    }
+
+    if ($end_date !== '') {
+        $endValid = DateTime::createFromFormat('!Y-m-d', $end_date);
+
+        if (!$endValid || $endValid->format('Y-m-d') !== $end_date) {
+            $errors[] = "Format tanggal selesai tidak valid.";
+        }
+    }
+
     if (
         $end_date !== '' &&
         $start_date !== '' &&
@@ -58,6 +78,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
     if (empty($errors)) {
+
         $update = $pdo->prepare("
             UPDATE medicines
             SET medicine_name = ?,
@@ -119,6 +140,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <?php endif; ?>
 
             <form method="POST">
+
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="<?= htmlspecialchars(generateCSRFToken()) ?>"
+                >
 
                 <div class="mb-3">
                     <label class="form-label">Nama Obat</label>
