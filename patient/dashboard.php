@@ -32,6 +32,12 @@ $name = htmlspecialchars($_SESSION['name']);
     Kelola Jadwal Obat
 </a>
         <li><a href="#">Riwayat Pengobatan</a></li>
+        <a href="medication_tracking.php" class="btn btn-primary">
+    Catat Konsumsi Obat
+</a>
+       <br> <a href="medication_history.php" class="btn btn-outline-primary">
+        Riwayat Konsumsi Obat
+</a> </br>
     </ul>
 
     <a href="../auth/logout.php">Logout</a>
