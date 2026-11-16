@@ -37,6 +37,12 @@ $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </a>
     </div>
 
+<?php if (isset($_GET['success']) && $_GET['success'] === 'added'): ?>
+    <div class="alert alert-success">
+        Data obat berhasil ditambahkan!
+    </div>
+<?php endif; ?>
+
     <div class="card shadow-sm">
         <div class="card-body">
             <?php if (count($medicines) > 0): ?>
