@@ -24,6 +24,9 @@ $name = htmlspecialchars($_SESSION['name']);
 
     <ul>
         <li><a href="#">Data Obat</a></li>
+        <a href="medicines.php" class="btn btn-primary">
+    Kelola Data Obat
+</a>
         <li><a href="#">Jadwal Konsumsi</a></li>
         <li><a href="#">Riwayat Pengobatan</a></li>
     </ul>
@@ -32,3 +35,5 @@ $name = htmlspecialchars($_SESSION['name']);
 
 </body>
 </html>
+
+     
