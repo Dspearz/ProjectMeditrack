@@ -22,6 +22,18 @@ $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 <?php endif; ?>
 
+<?php if (isset($_GET['success']) && $_GET['success'] === 'deleted'): ?>
+    <div class="alert alert-success">
+        Data obat berhasil dihapus!
+    </div>
+<?php endif; ?>
+
+<?php if (isset($_GET['error']) && $_GET['error'] === 'notfound'): ?>
+    <div class="alert alert-warning">
+        Data obat tidak ditemukan.
+    </div>
+<?php endif; ?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -82,11 +94,17 @@ $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         <a href="edit_medicine.php?id=<?= $medicine['id'] ?>"
                                            class="btn btn-sm btn-warning">Edit</a>
 
-                                        <a href="delete_medicine.php?id=<?= $medicine['id'] ?>"
-                                           class="btn btn-sm btn-danger"
-                                           onclick="return confirm('Yakin ingin menghapus obat ini?')">
-                                           Hapus
-                                        </a>
+                                       <form action="delete_medicine.php" method="POST"
+      onsubmit="return confirm('Yakin ingin menghapus obat ini?')"
+      class="d-inline">
+
+    <input type="hidden" name="id"
+           value="<?= htmlspecialchars($medicine['id']) ?>">
+
+    <button type="submit" class="btn btn-sm btn-danger">
+        Hapus
+    </button>
+</form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
