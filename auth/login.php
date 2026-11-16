@@ -1,6 +1,19 @@
 <?php
 require_once "../config/database.php";
 
+// Konfigurasi keamanan session
+ini_set('session.use_only_cookies', 1);
+ini_set('session.use_strict_mode', 1);
+
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'domain' => '',
+    'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
+
 session_start();
 
 if (isset($_SESSION['user_id'])) {
