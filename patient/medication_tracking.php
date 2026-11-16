@@ -4,10 +4,14 @@ require_once "../includes/auth_check.php";
 
 requireRole('patient');
 
+date_default_timezone_set('Asia/Jakarta');
+
 $user_id = $_SESSION['user_id'];
 $today = date('Y-m-d');
 $errors = [];
-$success = false;
+
+$pageTitle = "Pelacakan Konsumsi Obat";
+$currentPage = "medication_tracking";
 
 // Proses pencatatan konsumsi
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -128,29 +132,44 @@ $stmt->execute([
 ]);
 
 $schedules = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Statistik
+$totalSchedules = count($schedules);
+$totalTaken = 0;
+$totalMissed = 0;
+$totalSkipped = 0;
+$totalPending = 0;
+
+foreach ($schedules as $schedule) {
+    if ($schedule['log_status'] === 'taken') {
+        $totalTaken++;
+    } elseif ($schedule['log_status'] === 'missed') {
+        $totalMissed++;
+    } elseif ($schedule['log_status'] === 'skipped') {
+        $totalSkipped++;
+    } else {
+        $totalPending++;
+    }
+}
+
+require_once "../includes/header.php";
+require_once "../includes/sidebar.php";
 ?>
 
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<div class="main-content">
 
-    <title>Pencatatan Konsumsi - MediTrack</title>
+    <div class="page-header">
+        <div>
+            <h1>Pelacakan Konsumsi Obat</h1>
+            <p class="text-muted">
+                Pantau dan catat konsumsi obat harianmu.
+            </p>
+        </div>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-
-<body class="bg-light">
-
-<div class="container py-5">
-
-    <h2>Pencatatan Konsumsi Obat</h2>
-
-    <p class="text-muted">
-        Tanggal:
-        <?= date('d-m-Y', strtotime($today)) ?>
-    </p>
+        <div class="text-muted">
+            <?= date('d-m-Y', strtotime($today)) ?>
+        </div>
+    </div>
 
     <?php if (isset($_GET['success'])): ?>
         <div class="alert alert-success">
@@ -168,130 +187,291 @@ $schedules = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     <?php endif; ?>
 
-    <?php if (empty($schedules)): ?>
+    <!-- Statistik -->
+    <div class="stats-grid">
 
-        <div class="card shadow-sm">
-            <div class="card-body text-center py-5">
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Jadwal</span>
+                <h3><?= $totalSchedules ?></h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Sudah Diminum</span>
+                <h3><?= $totalTaken ?></h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Terlewat</span>
+                <h3><?= $totalMissed ?></h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Belum Dicatat</span>
+                <h3><?= $totalPending ?></h3>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Daftar Jadwal -->
+    <div class="card">
+
+        <div class="mb-4">
+            <h4>Jadwal Obat Hari Ini</h4>
+            <p class="text-muted mb-0">
+                Perbarui status konsumsi sesuai aktivitasmu.
+            </p>
+        </div>
+
+        <?php if (empty($schedules)): ?>
+
+            <div class="text-center py-5">
                 <h5>Belum Ada Jadwal Hari Ini</h5>
+
                 <p class="text-muted">
                     Tidak ada jadwal konsumsi obat yang aktif hari ini.
                 </p>
+
                 <a href="schedules.php" class="btn btn-primary">
                     Lihat Jadwal
                 </a>
             </div>
-        </div>
 
-    <?php else: ?>
+        <?php else: ?>
 
-        <?php foreach ($schedules as $schedule): ?>
+            <div class="table-container">
 
-            <div class="card shadow-sm mb-3">
-                <div class="card-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Waktu</th>
+                            <th>Nama Obat</th>
+                            <th>Dosis</th>
+                            <th>Instruksi</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
 
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h5>
-                                <?= htmlspecialchars($schedule['medicine_name']) ?>
-                            </h5>
+                    <tbody>
 
-                            <p class="mb-1">
-                                Dosis: <?= htmlspecialchars($schedule['dosage']) ?>
-                            </p>
+                        <?php foreach ($schedules as $schedule): ?>
 
-                            <p class="mb-1">
-                                Waktu:
-                                <strong>
-                                    <?= htmlspecialchars(substr($schedule['schedule_time'], 0, 5)) ?>
-                                </strong>
-                            </p>
+                            <tr>
 
-                            <p class="text-muted">
-                                <?= htmlspecialchars($schedule['instructions'] ?? '') ?>
-                            </p>
-                        </div>
+                                <td>
+                                    <strong>
+                                        <?= htmlspecialchars(
+                                            substr($schedule['schedule_time'], 0, 5)
+                                        ) ?>
+                                    </strong>
+                                    <br>
+                                    <small class="text-muted">WIB</small>
+                                </td>
 
-                        <div>
-                            <?php
-                            $status = $schedule['log_status'];
+                                <td>
+                                    <strong>
+                                        <?= htmlspecialchars($schedule['medicine_name']) ?>
+                                    </strong>
+                                </td>
 
-                            if ($status === 'taken') {
-                                echo '<span class="badge bg-success">Sudah Diminum</span>';
-                            } elseif ($status === 'missed') {
-                                echo '<span class="badge bg-danger">Terlewat</span>';
-                            } elseif ($status === 'skipped') {
-                                echo '<span class="badge bg-warning text-dark">Dilewati</span>';
-                            } else {
-                                echo '<span class="badge bg-secondary">Belum Dicatat</span>';
-                            }
-                            ?>
-                        </div>
-                    </div>
+                                <td>
+                                    <?= htmlspecialchars($schedule['dosage']) ?>
+                                </td>
 
-                    <hr>
+                                <td>
+                                    <?= !empty($schedule['instructions'])
+                                        ? htmlspecialchars($schedule['instructions'])
+                                        : '-' ?>
+                                </td>
 
-                    <form method="POST">
+                                <td>
 
-                        <input
-                            type="hidden"
-                            name="schedule_id"
-                            value="<?= (int)$schedule['schedule_id'] ?>"
-                        >
+                                    <?php if ($schedule['log_status'] === 'taken'): ?>
 
-                        <div class="mb-3">
-                            <label class="form-label">
-                                Status Konsumsi
-                            </label>
+                                        <span class="status status-success">
+                                            Sudah Diminum
+                                        </span>
 
-                            <select name="status" class="form-select" required>
-                                <option value="taken"
-                                    <?= $schedule['log_status'] === 'taken' ? 'selected' : '' ?>>
-                                    Sudah Diminum
-                                </option>
+                                    <?php elseif ($schedule['log_status'] === 'missed'): ?>
 
-                                <option value="missed"
-                                    <?= $schedule['log_status'] === 'missed' ? 'selected' : '' ?>>
-                                    Terlewat
-                                </option>
+                                        <span class="status status-danger">
+                                            Terlewat
+                                        </span>
 
-                                <option value="skipped"
-                                    <?= $schedule['log_status'] === 'skipped' ? 'selected' : '' ?>>
-                                    Dilewati
-                                </option>
-                            </select>
-                        </div>
+                                    <?php elseif ($schedule['log_status'] === 'skipped'): ?>
 
-                        <div class="mb-3">
-                            <label class="form-label">
-                                Catatan (Opsional)
-                            </label>
+                                        <span class="status status-warning">
+                                            Dilewati
+                                        </span>
 
-                            <textarea
-                                name="notes"
-                                class="form-control"
-                                rows="2"
-                                placeholder="Tambahkan catatan..."
-                            ><?= htmlspecialchars($schedule['log_notes'] ?? '') ?></textarea>
-                        </div>
+                                    <?php else: ?>
 
-                        <button type="submit" class="btn btn-primary">
-                            Simpan Catatan
-                        </button>
+                                        <span class="status">
+                                            Belum Dicatat
+                                        </span>
 
-                    </form>
+                                    <?php endif; ?>
 
-                </div>
+                                </td>
+
+                                <td>
+                                    <button
+                                        type="button"
+                                        class="btn btn-primary btn-sm"
+                                        onclick="openTrackingForm(
+                                            <?= (int) $schedule['schedule_id'] ?>
+                                        )"
+                                    >
+                                        Catat Status
+                                    </button>
+                                </td>
+
+                            </tr>
+
+                            <!-- Form pencatatan -->
+                            <tr id="tracking-form-<?= (int) $schedule['schedule_id'] ?>"
+                                style="display: none;">
+
+                                <td colspan="6">
+
+                                    <form method="POST" class="p-3">
+
+                                        <input
+                                            type="hidden"
+                                            name="schedule_id"
+                                            value="<?= (int) $schedule['schedule_id'] ?>"
+                                        >
+
+                                        <h6 class="mb-3">
+                                            Catat Konsumsi:
+                                            <?= htmlspecialchars($schedule['medicine_name']) ?>
+                                        </h6>
+
+                                        <div class="row">
+
+                                            <div class="col-md-5 mb-3">
+                                                <label class="form-label">
+                                                    Status Konsumsi
+                                                </label>
+
+                                                <select
+                                                    name="status"
+                                                    class="form-control"
+                                                    required
+                                                >
+
+                                                    <option value="taken"
+                                                        <?= $schedule['log_status'] === 'taken' ? 'selected' : '' ?>>
+                                                        Sudah Diminum
+                                                    </option>
+
+                                                    <option value="missed"
+                                                        <?= $schedule['log_status'] === 'missed' ? 'selected' : '' ?>>
+                                                        Terlewat
+                                                    </option>
+
+                                                    <option value="skipped"
+                                                        <?= $schedule['log_status'] === 'skipped' ? 'selected' : '' ?>>
+                                                        Dilewati
+                                                    </option>
+
+                                                </select>
+                                            </div>
+
+                                            <div class="col-md-7 mb-3">
+                                                <label class="form-label">
+                                                    Catatan (Opsional)
+                                                </label>
+
+                                                <textarea
+                                                    name="notes"
+                                                    class="form-control"
+                                                    rows="2"
+                                                    placeholder="Tambahkan catatan..."
+                                                ><?= htmlspecialchars($schedule['log_notes'] ?? '') ?></textarea>
+                                            </div>
+
+                                        </div>
+
+                                        <button
+                                            type="submit"
+                                            class="btn btn-primary"
+                                        >
+                                            Simpan Catatan
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-secondary"
+                                            onclick="closeTrackingForm(
+                                                <?= (int) $schedule['schedule_id'] ?>
+                                            )"
+                                        >
+                                            Batal
+                                        </button>
+
+                                    </form>
+
+                                </td>
+
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                    </tbody>
+                </table>
+
             </div>
 
-        <?php endforeach; ?>
+        <?php endif; ?>
 
-    <?php endif; ?>
+    </div>
 
-    <a href="dashboard.php" class="btn btn-outline-secondary mt-2">
-        Kembali ke Dashboard
-    </a>
+    <!-- Keterangan -->
+    <div class="card mt-4">
+
+        <h5>Keterangan Status</h5>
+
+        <div class="d-flex flex-wrap gap-3 mt-3">
+
+            <span class="status status-success">
+                Sudah Diminum
+            </span>
+
+            <span class="status status-danger">
+                Terlewat
+            </span>
+
+            <span class="status status-warning">
+                Dilewati
+            </span>
+
+            <span class="status">
+                Belum Dicatat
+            </span>
+
+        </div>
+
+    </div>
 
 </div>
 
-</body>
-</html>
+<script>
+function openTrackingForm(id) {
+    document.getElementById('tracking-form-' + id).style.display = 'table-row';
+}
+
+function closeTrackingForm(id) {
+    document.getElementById('tracking-form-' + id).style.display = 'none';
+}
+</script>
+
+<?php require_once "../includes/footer.php"; ?>

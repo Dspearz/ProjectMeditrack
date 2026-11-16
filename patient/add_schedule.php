@@ -75,6 +75,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $errors[] = "Tanggal selesai tidak boleh sebelum tanggal mulai.";
     }
 
+    // Simpan jadwal
     if (empty($errors)) {
 
         $insert = $pdo->prepare("
@@ -104,36 +105,42 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit;
     }
 }
+
+$pageTitle = "Tambah Jadwal Obat";
+
+require_once "../includes/header.php";
+require_once "../includes/sidebar.php";
 ?>
 
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<main class="main-content">
 
-    <title>Tambah Jadwal - MediTrack</title>
+    <div class="page-header">
+        <div>
+            <h1>Tambah Jadwal Obat</h1>
+            <p class="text-muted">
+                Atur waktu dan periode konsumsi obat.
+            </p>
+        </div>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-
-<body class="bg-light">
-
-<div class="container py-5">
-
-    <div class="mb-4">
-        <h2>Tambah Jadwal Obat</h2>
-        <p class="text-muted">
-            Atur waktu dan periode konsumsi obat.
-        </p>
+        <a href="schedules.php" class="btn btn-outline-secondary">
+            Kembali
+        </a>
     </div>
 
-    <div class="card shadow-sm">
+    <div class="card">
         <div class="card-body p-4">
+
+            <div class="mb-4">
+                <h5>Informasi Jadwal</h5>
+                <p class="text-muted mb-0">
+                    Lengkapi informasi untuk membuat jadwal konsumsi obat.
+                </p>
+            </div>
 
             <?php if (!empty($errors)): ?>
                 <div class="alert alert-danger">
-                    <ul class="mb-0">
+                    <strong>Periksa kembali data kamu:</strong>
+                    <ul class="mb-0 mt-2">
                         <?php foreach ($errors as $error): ?>
                             <li><?= htmlspecialchars($error) ?></li>
                         <?php endforeach; ?>
@@ -144,26 +151,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <?php if (empty($medicines)): ?>
 
                 <div class="alert alert-warning">
-                    Kamu belum memiliki data obat.
-                    Tambahkan data obat terlebih dahulu.
+                    <strong>Belum ada data obat.</strong>
+                    <p class="mb-2">
+                        Kamu perlu menambahkan data obat terlebih dahulu
+                        sebelum membuat jadwal konsumsi.
+                    </p>
+
+                    <a href="add_medicine.php" class="btn btn-primary">
+                        Tambah Data Obat
+                    </a>
                 </div>
-
-                <a href="add_medicine.php" class="btn btn-primary">
-                    Tambah Data Obat
-                </a>
-
-                <a href="schedules.php" class="btn btn-secondary">
-                    Kembali
-                </a>
 
             <?php else: ?>
 
                 <form method="POST">
 
-                    <div class="mb-3">
-                        <label class="form-label">Pilih Obat</label>
+                    <div class="form-group mb-3">
+                        <label for="medicine_id" class="form-label">
+                            Pilih Obat <span class="text-danger">*</span>
+                        </label>
 
-                        <select name="medicine_id" class="form-select" required>
+                        <select
+                            name="medicine_id"
+                            id="medicine_id"
+                            class="form-control"
+                            required
+                        >
                             <option value="">-- Pilih Obat --</option>
 
                             <?php foreach ($medicines as $medicine): ?>
@@ -182,69 +195,89 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         </select>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Waktu Konsumsi</label>
+                    <div class="form-group mb-3">
+                        <label for="schedule_time" class="form-label">
+                            Waktu Konsumsi <span class="text-danger">*</span>
+                        </label>
 
                         <input
                             type="time"
                             name="schedule_time"
+                            id="schedule_time"
                             class="form-control"
                             value="<?= htmlspecialchars($_POST['schedule_time'] ?? '') ?>"
                             required
                         >
+
+                        <small class="text-muted">
+                            Tentukan waktu konsumsi sesuai aturan penggunaan obat.
+                        </small>
                     </div>
 
                     <div class="row">
 
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Tanggal Mulai</label>
+                            <div class="form-group">
+                                <label for="start_date" class="form-label">
+                                    Tanggal Mulai <span class="text-danger">*</span>
+                                </label>
 
-                            <input
-                                type="date"
-                                name="start_date"
-                                class="form-control"
-                                value="<?= htmlspecialchars($_POST['start_date'] ?? '') ?>"
-                                required
-                            >
+                                <input
+                                    type="date"
+                                    name="start_date"
+                                    id="start_date"
+                                    class="form-control"
+                                    value="<?= htmlspecialchars($_POST['start_date'] ?? '') ?>"
+                                    required
+                                >
+                            </div>
                         </div>
 
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Tanggal Selesai</label>
+                            <div class="form-group">
+                                <label for="end_date" class="form-label">
+                                    Tanggal Selesai
+                                </label>
 
-                            <input
-                                type="date"
-                                name="end_date"
-                                class="form-control"
-                                value="<?= htmlspecialchars($_POST['end_date'] ?? '') ?>"
-                            >
+                                <input
+                                    type="date"
+                                    name="end_date"
+                                    id="end_date"
+                                    class="form-control"
+                                    value="<?= htmlspecialchars($_POST['end_date'] ?? '') ?>"
+                                >
 
-                            <small class="text-muted">
-                                Kosongkan jika belum ditentukan.
-                            </small>
+                                <small class="text-muted">
+                                    Kosongkan jika tanggal selesai belum ditentukan.
+                                </small>
+                            </div>
                         </div>
 
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">
+                    <div class="form-group mb-3">
+                        <label for="instructions" class="form-label">
                             Instruksi Tambahan
                         </label>
 
                         <textarea
                             name="instructions"
+                            id="instructions"
                             class="form-control"
-                            rows="3"
-                            placeholder="Contoh: Setelah makan."
+                            rows="4"
+                            placeholder="Contoh: Dikonsumsi setelah makan."
                         ><?= htmlspecialchars($_POST['instructions'] ?? '') ?></textarea>
                     </div>
 
-                    <div class="d-flex gap-2">
+                    <hr class="my-4">
+
+                    <div class="d-flex flex-wrap gap-2">
 
                         <button type="submit" class="btn btn-primary">
                             Simpan Jadwal
                         </button>
 
-                        <a href="schedules.php" class="btn btn-secondary">
+                        <a href="schedules.php" class="btn btn-outline-secondary">
                             Batal
                         </a>
 
@@ -257,7 +290,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         </div>
     </div>
 
-</div>
+</main>
 
-</body>
-</html>
+<?php require_once "../includes/footer.php"; ?>

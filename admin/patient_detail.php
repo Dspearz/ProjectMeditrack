@@ -4,9 +4,12 @@ require_once "../includes/auth_check.php";
 
 requireRole('admin');
 
+$pageTitle = "Detail Pasien";
+$currentPage = "patients";
+
 $patient_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 
-if (!$patient_id) {
+if (!$patient_id || $patient_id < 1) {
     header("Location: patients.php");
     exit;
 }
@@ -68,60 +71,142 @@ $stmt = $pdo->prepare("
 
 $stmt->execute([$patient_id]);
 $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Statistik jadwal
+$totalActiveSchedules = 0;
+$totalInactiveSchedules = 0;
+
+foreach ($schedules as $schedule) {
+    if ($schedule['status'] === 'active') {
+        $totalActiveSchedules++;
+    } else {
+        $totalInactiveSchedules++;
+    }
+}
+
+// Statistik riwayat
+$totalTaken = 0;
+$totalMissed = 0;
+$totalSkipped = 0;
+
+foreach ($logs as $log) {
+    if ($log['status'] === 'taken') {
+        $totalTaken++;
+    } elseif ($log['status'] === 'missed') {
+        $totalMissed++;
+    } elseif ($log['status'] === 'skipped') {
+        $totalSkipped++;
+    }
+}
+
+require_once "../includes/header.php";
+require_once "../includes/sidebar.php";
 ?>
 
-<!DOCTYPE html>
-<html lang="id">
+<div class="main-content">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Detail Pasien - MediTrack</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-
-<body class="bg-light">
-
-<div class="container py-5">
-
-    <a href="patients.php" class="btn btn-outline-secondary mb-4">
-        Kembali ke Data Pasien
-    </a>
-
-    <h2>Detail Pasien</h2>
-
-    <!-- Identitas Pasien -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-
-            <h4><?= htmlspecialchars($patient['name']) ?></h4>
-
-            <p class="mb-1">
-                Email: <?= htmlspecialchars($patient['email']) ?>
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h1>Detail Pasien</h1>
+            <p class="text-muted">
+                Informasi lengkap dan aktivitas pasien MediTrack.
             </p>
-
-            <p class="mb-0 text-muted">
-                Terdaftar:
-                <?= date('d-m-Y', strtotime($patient['created_at'])) ?>
-            </p>
-
         </div>
+
+        <a href="patients.php" class="btn btn-secondary">
+            Kembali ke Data Pasien
+        </a>
     </div>
 
-    <!-- Data Obat -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
+    <!-- Profil Pasien -->
+    <div class="card mb-4">
 
-            <h5>Daftar Obat (<?= count($medicines) ?>)</h5>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
 
-            <div class="table-responsive">
+            <div>
+                <h3 class="mb-2">
+                    <?= htmlspecialchars($patient['name']) ?>
+                </h3>
 
-                <table class="table table-hover">
+                <p class="text-muted mb-1">
+                    <?= htmlspecialchars($patient['email']) ?>
+                </p>
 
+                <small class="text-muted">
+                    Terdaftar sejak
+                    <?= date('d-m-Y', strtotime($patient['created_at'])) ?>
+                </small>
+            </div>
+
+            <span class="status status-success">
+                Akun Pasien
+            </span>
+
+        </div>
+
+    </div>
+
+    <!-- Statistik -->
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Obat</span>
+                <h3><?= count($medicines) ?></h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Jadwal</span>
+                <h3><?= count($schedules) ?></h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Jadwal Aktif</span>
+                <h3><?= $totalActiveSchedules ?></h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Riwayat</span>
+                <h3><?= count($logs) ?></h3>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Daftar Obat -->
+    <div class="card mb-4">
+
+        <div class="mb-4">
+            <h4>Daftar Obat</h4>
+            <p class="text-muted mb-0">
+                Total <?= count($medicines) ?> obat yang terdaftar.
+            </p>
+        </div>
+
+        <?php if (empty($medicines)): ?>
+
+            <div class="text-center py-4">
+                <h5>Belum Ada Data Obat</h5>
+                <p class="text-muted mb-0">
+                    Pasien belum menambahkan data obat.
+                </p>
+            </div>
+
+        <?php else: ?>
+
+            <div class="table-container">
+
+                <table>
                     <thead>
                         <tr>
+                            <th>No</th>
                             <th>Nama Obat</th>
                             <th>Dosis</th>
                             <th>Tanggal Mulai</th>
@@ -131,112 +216,204 @@ $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                     <tbody>
 
-                    <?php if ($medicines): ?>
-
-                        <?php foreach ($medicines as $medicine): ?>
+                        <?php foreach ($medicines as $index => $medicine): ?>
 
                             <tr>
-                                <td><?= htmlspecialchars($medicine['medicine_name']) ?></td>
-                                <td><?= htmlspecialchars($medicine['dosage']) ?></td>
-                                <td><?= htmlspecialchars($medicine['start_date']) ?></td>
-                                <td><?= htmlspecialchars($medicine['end_date'] ?? '-') ?></td>
+                                <td><?= $index + 1 ?></td>
+
+                                <td>
+                                    <strong>
+                                        <?= htmlspecialchars($medicine['medicine_name']) ?>
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    <?= htmlspecialchars($medicine['dosage']) ?>
+                                </td>
+
+                                <td>
+                                    <?= date(
+                                        'd-m-Y',
+                                        strtotime($medicine['start_date'])
+                                    ) ?>
+                                </td>
+
+                                <td>
+                                    <?= !empty($medicine['end_date'])
+                                        ? date('d-m-Y', strtotime($medicine['end_date']))
+                                        : '-' ?>
+                                </td>
                             </tr>
 
                         <?php endforeach; ?>
 
-                    <?php else: ?>
-
-                        <tr>
-                            <td colspan="4" class="text-center">
-                                Belum ada data obat.
-                            </td>
-                        </tr>
-
-                    <?php endif; ?>
-
                     </tbody>
-
                 </table>
 
             </div>
 
-        </div>
+        <?php endif; ?>
+
     </div>
 
     <!-- Jadwal Konsumsi -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
+    <div class="card mb-4">
 
-            <h5>Jadwal Konsumsi (<?= count($schedules) ?>)</h5>
+        <div class="mb-4">
+            <h4>Jadwal Konsumsi</h4>
+            <p class="text-muted mb-0">
+                Total <?= count($schedules) ?> jadwal konsumsi pasien.
+            </p>
+        </div>
 
-            <div class="table-responsive">
+        <?php if (empty($schedules)): ?>
 
-                <table class="table table-hover">
+            <div class="text-center py-4">
+                <h5>Belum Ada Jadwal Konsumsi</h5>
+                <p class="text-muted mb-0">
+                    Pasien belum membuat jadwal konsumsi obat.
+                </p>
+            </div>
 
+        <?php else: ?>
+
+            <div class="table-container">
+
+                <table>
                     <thead>
                         <tr>
+                            <th>No</th>
                             <th>Nama Obat</th>
                             <th>Dosis</th>
                             <th>Waktu</th>
-                            <th>Mulai</th>
-                            <th>Selesai</th>
+                            <th>Tanggal Mulai</th>
+                            <th>Tanggal Selesai</th>
                             <th>Status</th>
                         </tr>
                     </thead>
 
                     <tbody>
 
-                    <?php if ($schedules): ?>
-
-                        <?php foreach ($schedules as $schedule): ?>
+                        <?php foreach ($schedules as $index => $schedule): ?>
 
                             <tr>
-                                <td><?= htmlspecialchars($schedule['medicine_name']) ?></td>
-                                <td><?= htmlspecialchars($schedule['dosage']) ?></td>
-                                <td><?= htmlspecialchars($schedule['schedule_time']) ?></td>
-                                <td><?= htmlspecialchars($schedule['start_date']) ?></td>
-                                <td><?= htmlspecialchars($schedule['end_date'] ?? '-') ?></td>
+                                <td><?= $index + 1 ?></td>
+
                                 <td>
-                                    <span class="badge bg-<?= $schedule['status'] === 'active' ? 'success' : 'secondary' ?>">
-                                        <?= htmlspecialchars($schedule['status']) ?>
-                                    </span>
+                                    <strong>
+                                        <?= htmlspecialchars($schedule['medicine_name']) ?>
+                                    </strong>
                                 </td>
+
+                                <td>
+                                    <?= htmlspecialchars($schedule['dosage']) ?>
+                                </td>
+
+                                <td>
+                                    <?= date(
+                                        'H:i',
+                                        strtotime($schedule['schedule_time'])
+                                    ) ?>
+                                    WIB
+                                </td>
+
+                                <td>
+                                    <?= date(
+                                        'd-m-Y',
+                                        strtotime($schedule['start_date'])
+                                    ) ?>
+                                </td>
+
+                                <td>
+                                    <?= !empty($schedule['end_date'])
+                                        ? date('d-m-Y', strtotime($schedule['end_date']))
+                                        : '-' ?>
+                                </td>
+
+                                <td>
+                                    <?php if ($schedule['status'] === 'active'): ?>
+
+                                        <span class="status status-success">
+                                            Aktif
+                                        </span>
+
+                                    <?php else: ?>
+
+                                        <span class="status">
+                                            Tidak Aktif
+                                        </span>
+
+                                    <?php endif; ?>
+                                </td>
+
                             </tr>
 
                         <?php endforeach; ?>
 
-                    <?php else: ?>
-
-                        <tr>
-                            <td colspan="6" class="text-center">
-                                Belum ada jadwal konsumsi.
-                            </td>
-                        </tr>
-
-                    <?php endif; ?>
-
                     </tbody>
-
                 </table>
 
             </div>
 
-        </div>
+        <?php endif; ?>
+
     </div>
 
     <!-- Riwayat Konsumsi -->
-    <div class="card shadow-sm">
-        <div class="card-body">
+    <div class="card mb-4">
 
-            <h5>Riwayat Konsumsi (Maksimal 50 Catatan)</h5>
+        <div class="mb-4">
+            <h4>Riwayat Konsumsi Obat</h4>
+            <p class="text-muted mb-0">
+                Menampilkan maksimal 50 catatan konsumsi terbaru.
+            </p>
+        </div>
 
-            <div class="table-responsive">
+        <!-- Statistik Riwayat -->
+        <div class="stats-grid">
 
-                <table class="table table-hover">
+            <div class="stat-card">
+                <div class="stat-info">
+                    <span>Sudah Diminum</span>
+                    <h3><?= $totalTaken ?></h3>
+                </div>
+            </div>
 
+            <div class="stat-card">
+                <div class="stat-info">
+                    <span>Terlewat</span>
+                    <h3><?= $totalMissed ?></h3>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-info">
+                    <span>Dilewati</span>
+                    <h3><?= $totalSkipped ?></h3>
+                </div>
+            </div>
+
+        </div>
+
+        <?php if (empty($logs)): ?>
+
+            <div class="text-center py-4">
+                <h5>Belum Ada Riwayat Konsumsi</h5>
+                <p class="text-muted mb-0">
+                    Belum terdapat catatan konsumsi obat dari pasien.
+                </p>
+            </div>
+
+        <?php else: ?>
+
+            <div class="table-container">
+
+                <table>
                     <thead>
                         <tr>
+                            <th>No</th>
                             <th>Nama Obat</th>
+                            <th>Dosis</th>
                             <th>Jadwal</th>
                             <th>Waktu Dicatat</th>
                             <th>Status</th>
@@ -246,70 +423,89 @@ $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                     <tbody>
 
-                    <?php if ($logs): ?>
-
-                        <?php foreach ($logs as $log): ?>
+                        <?php foreach ($logs as $index => $log): ?>
 
                             <tr>
-                                <td><?= htmlspecialchars($log['medicine_name']) ?></td>
+
+                                <td><?= $index + 1 ?></td>
 
                                 <td>
-                                    <?= date('d-m-Y H:i', strtotime($log['scheduled_at'])) ?>
+                                    <strong>
+                                        <?= htmlspecialchars($log['medicine_name']) ?>
+                                    </strong>
                                 </td>
 
                                 <td>
-                                    <?= $log['taken_at']
-                                        ? date('d-m-Y H:i', strtotime($log['taken_at']))
+                                    <?= htmlspecialchars($log['dosage']) ?>
+                                </td>
+
+                                <td>
+                                    <?= date(
+                                        'd-m-Y H:i',
+                                        strtotime($log['scheduled_at'])
+                                    ) ?>
+                                    WIB
+                                </td>
+
+                                <td>
+                                    <?= !empty($log['taken_at'])
+                                        ? date('d-m-Y H:i', strtotime($log['taken_at'])) . ' WIB'
                                         : '-' ?>
                                 </td>
 
                                 <td>
-                                    <?php
-                                    $badge = [
-                                        'taken' => 'success',
-                                        'missed' => 'danger',
-                                        'skipped' => 'warning'
-                                    ];
 
-                                    $label = [
-                                        'taken' => 'Sudah Diminum',
-                                        'missed' => 'Terlewat',
-                                        'skipped' => 'Dilewati'
-                                    ];
-                                    ?>
+                                    <?php if ($log['status'] === 'taken'): ?>
 
-                                    <span class="badge bg-<?= $badge[$log['status']] ?>">
-                                        <?= $label[$log['status']] ?>
-                                    </span>
+                                        <span class="status status-success">
+                                            Sudah Diminum
+                                        </span>
+
+                                    <?php elseif ($log['status'] === 'missed'): ?>
+
+                                        <span class="status status-danger">
+                                            Terlewat
+                                        </span>
+
+                                    <?php elseif ($log['status'] === 'skipped'): ?>
+
+                                        <span class="status status-warning">
+                                            Dilewati
+                                        </span>
+
+                                    <?php else: ?>
+
+                                        <span class="status">
+                                            Tidak Diketahui
+                                        </span>
+
+                                    <?php endif; ?>
+
                                 </td>
 
                                 <td>
-                                    <?= htmlspecialchars($log['notes'] ?? '-') ?>
+                                    <?= !empty($log['notes'])
+                                        ? htmlspecialchars($log['notes'])
+                                        : '-' ?>
                                 </td>
+
                             </tr>
 
                         <?php endforeach; ?>
 
-                    <?php else: ?>
-
-                        <tr>
-                            <td colspan="5" class="text-center">
-                                Belum ada riwayat konsumsi.
-                            </td>
-                        </tr>
-
-                    <?php endif; ?>
-
                     </tbody>
-
                 </table>
 
             </div>
 
-        </div>
+        <?php endif; ?>
+
     </div>
+
+    <a href="patients.php" class="btn btn-secondary">
+        Kembali ke Data Pasien
+    </a>
 
 </div>
 
-</body>
-</html>
+<?php require_once "../includes/footer.php"; ?>

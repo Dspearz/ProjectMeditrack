@@ -11,6 +11,7 @@ $errors = [];
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     validateCSRFToken();
+
     $medicine_name = trim($_POST['medicine_name'] ?? '');
     $dosage = trim($_POST['dosage'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -40,6 +41,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     // Simpan data ke database
     if (empty($errors)) {
+
         $stmt = $pdo->prepare("
             INSERT INTO medicines
             (user_id, medicine_name, dosage, description, start_date, end_date)
@@ -59,35 +61,42 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit;
     }
 }
+
+$pageTitle = "Tambah Obat";
+
+require_once "../includes/header.php";
+require_once "../includes/sidebar.php";
 ?>
 
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tambah Obat - MediTrack</title>
+<main class="main-content">
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
+    <div class="page-header">
+        <div>
+            <h1>Tambah Data Obat</h1>
+            <p class="text-muted">
+                Tambahkan informasi obat yang sedang kamu konsumsi.
+            </p>
+        </div>
 
-<body class="bg-light">
-
-<div class="container py-5">
-
-    <div class="mb-4">
-        <h2>Tambah Data Obat</h2>
-        <p class="text-muted">
-            Masukkan informasi obat yang sedang kamu konsumsi.
-        </p>
+        <a href="medicines.php" class="btn btn-outline-secondary">
+            Kembali
+        </a>
     </div>
 
-    <div class="card shadow-sm">
+    <div class="card">
         <div class="card-body p-4">
+
+            <div class="mb-4">
+                <h5>Informasi Obat</h5>
+                <p class="text-muted mb-0">
+                    Lengkapi informasi berikut untuk mencatat obat baru.
+                </p>
+            </div>
 
             <?php if (!empty($errors)): ?>
                 <div class="alert alert-danger">
-                    <ul class="mb-0">
+                    <strong>Periksa kembali data kamu:</strong>
+                    <ul class="mb-0 mt-2">
                         <?php foreach ($errors as $error): ?>
                             <li><?= htmlspecialchars($error) ?></li>
                         <?php endforeach; ?>
@@ -96,16 +105,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <?php endif; ?>
 
             <form method="POST">
-                <input
-    type="hidden"
-    name="csrf_token"
-    value="<?= htmlspecialchars(generateCSRFToken()) ?>"
->
 
-                <div class="mb-3">
-                    <label class="form-label">Nama Obat</label>
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="<?= htmlspecialchars(generateCSRFToken()) ?>"
+                >
+
+                <div class="form-group mb-3">
+                    <label for="medicine_name" class="form-label">
+                        Nama Obat <span class="text-danger">*</span>
+                    </label>
+
                     <input
                         type="text"
+                        id="medicine_name"
                         name="medicine_name"
                         class="form-control"
                         placeholder="Contoh: Paracetamol"
@@ -114,10 +128,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     >
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Dosis Obat</label>
+                <div class="form-group mb-3">
+                    <label for="dosage" class="form-label">
+                        Dosis Obat <span class="text-danger">*</span>
+                    </label>
+
                     <input
                         type="text"
+                        id="dosage"
                         name="dosage"
                         class="form-control"
                         placeholder="Contoh: 500 mg"
@@ -126,48 +144,70 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     >
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Deskripsi / Aturan Penggunaan</label>
+                <div class="form-group mb-3">
+                    <label for="description" class="form-label">
+                        Deskripsi / Aturan Penggunaan
+                    </label>
+
                     <textarea
+                        id="description"
                         name="description"
                         class="form-control"
-                        rows="3"
+                        rows="4"
                         placeholder="Contoh: Dikonsumsi setelah makan sesuai resep."
                     ><?= htmlspecialchars($_POST['description'] ?? '') ?></textarea>
                 </div>
 
                 <div class="row">
+
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Tanggal Mulai</label>
-                        <input
-                            type="date"
-                            name="start_date"
-                            class="form-control"
-                            value="<?= htmlspecialchars($_POST['start_date'] ?? '') ?>"
-                            required
-                        >
+                        <div class="form-group">
+                            <label for="start_date" class="form-label">
+                                Tanggal Mulai <span class="text-danger">*</span>
+                            </label>
+
+                            <input
+                                type="date"
+                                id="start_date"
+                                name="start_date"
+                                class="form-control"
+                                value="<?= htmlspecialchars($_POST['start_date'] ?? '') ?>"
+                                required
+                            >
+                        </div>
                     </div>
 
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Tanggal Selesai</label>
-                        <input
-                            type="date"
-                            name="end_date"
-                            class="form-control"
-                            value="<?= htmlspecialchars($_POST['end_date'] ?? '') ?>"
-                        >
-                        <small class="text-muted">
-                            Kosongkan jika belum ditentukan.
-                        </small>
+                        <div class="form-group">
+                            <label for="end_date" class="form-label">
+                                Tanggal Selesai
+                            </label>
+
+                            <input
+                                type="date"
+                                id="end_date"
+                                name="end_date"
+                                class="form-control"
+                                value="<?= htmlspecialchars($_POST['end_date'] ?? '') ?>"
+                            >
+
+                            <small class="text-muted">
+                                Kosongkan jika tanggal selesai belum ditentukan.
+                            </small>
+                        </div>
                     </div>
+
                 </div>
 
-                <div class="d-flex gap-2">
+                <hr class="my-4">
+
+                <div class="d-flex flex-wrap gap-2">
                     <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i>
                         Simpan Obat
                     </button>
 
-                    <a href="medicines.php" class="btn btn-secondary">
+                    <a href="medicines.php" class="btn btn-outline-secondary">
                         Batal
                     </a>
                 </div>
@@ -177,7 +217,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         </div>
     </div>
 
-</div>
+</main>
 
-</body>
-</html>
+<?php require_once "../includes/footer.php"; ?>

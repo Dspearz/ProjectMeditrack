@@ -4,8 +4,24 @@ require_once "../includes/auth_check.php";
 
 requireRole('admin');
 
+$pageTitle = "Data Pasien";
+$currentPage = "patients";
+
 $search = trim($_GET['search'] ?? '');
 
+// Statistik seluruh pasien
+$statsQuery = $pdo->query("
+    SELECT
+        COUNT(DISTINCT u.id) AS total_patients,
+        COUNT(DISTINCT m.id) AS total_medicines
+    FROM users u
+    LEFT JOIN medicines m ON u.id = m.user_id
+    WHERE u.role = 'patient'
+");
+
+$stats = $statsQuery->fetch(PDO::FETCH_ASSOC);
+
+// Query daftar pasien
 $sql = "
     SELECT
         u.id,
@@ -35,80 +51,131 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 
 $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+require_once "../includes/header.php";
+require_once "../includes/sidebar.php";
 ?>
 
-<!DOCTYPE html>
-<html lang="id">
+<div class="main-content">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Data Pasien - MediTrack</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-
-<body class="bg-light">
-
-<div class="container py-5">
-
-    <div class="d-flex justify-content-between align-items-center mb-4">
-
+    <!-- Header -->
+    <div class="page-header">
         <div>
-            <h2>Data Pasien</h2>
+            <h1>Data Pasien</h1>
             <p class="text-muted">
-                Kelola dan pantau akun pasien MediTrack.
+                Kelola dan pantau data akun pasien MediTrack.
             </p>
         </div>
+    </div>
 
-        <a href="dashboard.php" class="btn btn-outline-secondary">
-            Kembali
-        </a>
+    <!-- Statistik -->
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Pasien</span>
+                <h3><?= (int) $stats['total_patients'] ?></h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Obat Terdaftar</span>
+                <h3><?= (int) $stats['total_medicines'] ?></h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Hasil Pencarian</span>
+                <h3><?= count($patients) ?></h3>
+            </div>
+        </div>
 
     </div>
 
     <!-- Pencarian -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
+    <div class="card mb-4">
 
-            <form method="GET" class="row g-2">
+        <div class="mb-3">
+            <h4>Pencarian Pasien</h4>
+            <p class="text-muted mb-0">
+                Cari pasien berdasarkan nama atau alamat email.
+            </p>
+        </div>
 
-                <div class="col-md-10">
+        <form method="GET">
+
+            <div class="row">
+
+                <div class="col-md-9 mb-2">
                     <input
                         type="text"
                         name="search"
                         class="form-control"
-                        placeholder="Cari nama atau email pasien..."
+                        placeholder="Masukkan nama atau email pasien..."
                         value="<?= htmlspecialchars($search) ?>"
                     >
                 </div>
 
-                <div class="col-md-2 d-grid">
-                    <button type="submit" class="btn btn-primary">
+                <div class="col-md-3 mb-2 d-flex gap-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                    >
                         Cari Pasien
                     </button>
+
+                    <a
+                        href="patients.php"
+                        class="btn btn-secondary"
+                    >
+                        Reset
+                    </a>
+
                 </div>
 
-            </form>
+            </div>
 
-        </div>
+        </form>
+
     </div>
 
     <!-- Daftar Pasien -->
-    <div class="card shadow-sm">
+    <div class="card">
 
-        <div class="card-body">
+        <div class="mb-4">
+            <h4>Daftar Pasien</h4>
+            <p class="text-muted mb-0">
+                Menampilkan <?= count($patients) ?> pasien.
+            </p>
+        </div>
 
-            <h5 class="mb-3">
-                Daftar Pasien (<?= count($patients) ?>)
-            </h5>
+        <?php if (empty($patients)): ?>
 
-            <div class="table-responsive">
+            <div class="text-center py-5">
+                <h5>Data Pasien Tidak Ditemukan</h5>
 
-                <table class="table table-hover align-middle">
+                <p class="text-muted">
+                    Tidak ada pasien yang sesuai dengan pencarian.
+                </p>
 
-                    <thead class="table-light">
+                <a
+                    href="patients.php"
+                    class="btn btn-primary"
+                >
+                    Tampilkan Semua Pasien
+                </a>
+            </div>
+
+        <?php else: ?>
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
                         <tr>
                             <th>No</th>
                             <th>Nama Pasien</th>
@@ -121,16 +188,18 @@ $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                     <tbody>
 
-                    <?php if (count($patients) > 0): ?>
-
                         <?php foreach ($patients as $index => $patient): ?>
 
                             <tr>
 
-                                <td><?= $index + 1 ?></td>
+                                <td>
+                                    <?= $index + 1 ?>
+                                </td>
 
                                 <td>
-                                    <?= htmlspecialchars($patient['name']) ?>
+                                    <strong>
+                                        <?= htmlspecialchars($patient['name']) ?>
+                                    </strong>
                                 </td>
 
                                 <td>
@@ -138,38 +207,30 @@ $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </td>
 
                                 <td>
-                                    <span class="badge bg-primary">
-                                        <?= $patient['total_medicines'] ?> Obat
+                                    <span class="status status-success">
+                                        <?= (int) $patient['total_medicines'] ?> Obat
                                     </span>
                                 </td>
 
                                 <td>
-                    
                                     <?= date(
                                         'd-m-Y',
                                         strtotime($patient['created_at'])
                                     ) ?>
                                 </td>
-                                
-                                 <td>
-    <a href="patient_detail.php?id=<?= $patient['id'] ?>"
-       class="btn btn-sm btn-info">
-        Detail
-    </a>
-</td>
+
+                                <td>
+                                    <a
+                                        href="patient_detail.php?id=<?= (int) $patient['id'] ?>"
+                                        class="btn btn-primary btn-sm"
+                                    >
+                                        Lihat Detail
+                                    </a>
+                                </td>
+
                             </tr>
 
                         <?php endforeach; ?>
-
-                    <?php else: ?>
-
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-4">
-                                Data pasien tidak ditemukan.
-                            </td>
-                        </tr>
-
-                    <?php endif; ?>
 
                     </tbody>
 
@@ -177,11 +238,10 @@ $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             </div>
 
-        </div>
+        <?php endif; ?>
 
     </div>
 
 </div>
 
-</body>
-</html>
+<?php require_once "../includes/footer.php"; ?>

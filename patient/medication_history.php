@@ -4,15 +4,60 @@ require_once "../includes/auth_check.php";
 
 requireRole('patient');
 
+date_default_timezone_set('Asia/Jakarta');
+
 $user_id = $_SESSION['user_id'];
+$pageTitle = "Riwayat Konsumsi Obat";
+$currentPage = "medication_history";
 
-// Filter tanggal dan status
-$start_date = $_GET['start_date'] ?? '';
-$end_date = $_GET['end_date'] ?? '';
-$status = $_GET['status'] ?? '';
+// Filter
+$startDate = $_GET['start_date'] ?? '';
+$endDate = $_GET['end_date'] ?? '';
+$statusFilter = $_GET['status'] ?? '';
 
-$sql = "
-    SELECT 
+$allowedStatuses = ['taken', 'missed', 'skipped'];
+
+if (!in_array($statusFilter, $allowedStatuses, true)) {
+    $statusFilter = '';
+}
+
+if (
+    $startDate !== '' &&
+    !DateTime::createFromFormat('Y-m-d', $startDate)
+) {
+    $startDate = '';
+}
+
+if (
+    $endDate !== '' &&
+    !DateTime::createFromFormat('Y-m-d', $endDate)
+) {
+    $endDate = '';
+}
+
+$conditions = ["ml.user_id = ?"];
+$params = [$user_id];
+
+if ($startDate !== '') {
+    $conditions[] = "DATE(ml.scheduled_at) >= ?";
+    $params[] = $startDate;
+}
+
+if ($endDate !== '') {
+    $conditions[] = "DATE(ml.scheduled_at) <= ?";
+    $params[] = $endDate;
+}
+
+if ($statusFilter !== '') {
+    $conditions[] = "ml.status = ?";
+    $params[] = $statusFilter;
+}
+
+$where = implode(" AND ", $conditions);
+
+// Ambil riwayat konsumsi
+$query = "
+    SELECT
         ml.id,
         ml.scheduled_at,
         ml.taken_at,
@@ -22,199 +67,324 @@ $sql = "
         m.dosage,
         s.schedule_time
     FROM medication_logs ml
-    JOIN medication_schedules s 
+    INNER JOIN medication_schedules s
         ON ml.schedule_id = s.id
-    JOIN medicines m 
+    INNER JOIN medicines m
         ON s.medicine_id = m.id
-    WHERE ml.user_id = ?
+    WHERE $where
+    ORDER BY ml.scheduled_at DESC
 ";
 
-$params = [$user_id];
-
-if (!empty($start_date)) {
-    $sql .= " AND DATE(ml.scheduled_at) >= ?";
-    $params[] = $start_date;
-}
-
-if (!empty($end_date)) {
-    $sql .= " AND DATE(ml.scheduled_at) <= ?";
-    $params[] = $end_date;
-}
-
-if (in_array($status, ['taken', 'missed', 'skipped'])) {
-    $sql .= " AND ml.status = ?";
-    $params[] = $status;
-}
-
-$sql .= " ORDER BY ml.scheduled_at DESC";
-
-$stmt = $pdo->prepare($sql);
+$stmt = $pdo->prepare($query);
 $stmt->execute($params);
-$history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$histories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Statistik berdasarkan hasil filter
+$totalHistory = count($histories);
+$totalTaken = 0;
+$totalMissed = 0;
+$totalSkipped = 0;
+
+foreach ($histories as $history) {
+    if ($history['status'] === 'taken') {
+        $totalTaken++;
+    } elseif ($history['status'] === 'missed') {
+        $totalMissed++;
+    } elseif ($history['status'] === 'skipped') {
+        $totalSkipped++;
+    }
+}
+
+require_once "../includes/header.php";
+require_once "../includes/sidebar.php";
 ?>
 
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Riwayat Konsumsi Obat - MediTrack</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
+<div class="main-content">
 
-<body class="bg-light">
-
-<div class="container py-5">
-
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <!-- Header -->
+    <div class="page-header">
         <div>
-            <h2>Riwayat Konsumsi Obat</h2>
-            <p class="text-muted">Catatan aktivitas konsumsi obat Anda.</p>
+            <h1>Riwayat Konsumsi Obat</h1>
+            <p class="text-muted">
+                Lihat kembali catatan konsumsi obat yang telah kamu lakukan.
+            </p>
+        </div>
+    </div>
+
+    <!-- Statistik -->
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Riwayat</span>
+                <h3><?= $totalHistory ?></h3>
+            </div>
         </div>
 
-        <a href="dashboard.php" class="btn btn-outline-secondary">
-            Kembali
-        </a>
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Sudah Diminum</span>
+                <h3><?= $totalTaken ?></h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Terlewat</span>
+                <h3><?= $totalMissed ?></h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Dilewati</span>
+                <h3><?= $totalSkipped ?></h3>
+            </div>
+        </div>
+
     </div>
 
     <!-- Filter -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <form method="GET" class="row g-3">
+    <div class="card mb-4">
 
-                <div class="col-md-3">
-                    <label class="form-label">Dari Tanggal</label>
-                    <input type="date" name="start_date"
-                           class="form-control"
-                           value="<?= htmlspecialchars($start_date) ?>">
+        <div class="mb-3">
+            <h4>Filter Riwayat</h4>
+            <p class="text-muted mb-0">
+                Cari riwayat berdasarkan tanggal dan status konsumsi.
+            </p>
+        </div>
+
+        <form method="GET">
+
+            <div class="row">
+
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">
+                        Tanggal Mulai
+                    </label>
+
+                    <input
+                        type="date"
+                        name="start_date"
+                        class="form-control"
+                        value="<?= htmlspecialchars($startDate) ?>"
+                    >
                 </div>
 
-                <div class="col-md-3">
-                    <label class="form-label">Sampai Tanggal</label>
-                    <input type="date" name="end_date"
-                           class="form-control"
-                           value="<?= htmlspecialchars($end_date) ?>">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">
+                        Tanggal Akhir
+                    </label>
+
+                    <input
+                        type="date"
+                        name="end_date"
+                        class="form-control"
+                        value="<?= htmlspecialchars($endDate) ?>"
+                    >
                 </div>
 
-                <div class="col-md-3">
-                    <label class="form-label">Status</label>
-                    <select name="status" class="form-select">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">
+                        Status Konsumsi
+                    </label>
+
+                    <select
+                        name="status"
+                        class="form-control"
+                    >
                         <option value="">Semua Status</option>
-                        <option value="taken" <?= $status === 'taken' ? 'selected' : '' ?>>
+
+                        <option value="taken"
+                            <?= $statusFilter === 'taken' ? 'selected' : '' ?>>
                             Sudah Diminum
                         </option>
-                        <option value="missed" <?= $status === 'missed' ? 'selected' : '' ?>>
+
+                        <option value="missed"
+                            <?= $statusFilter === 'missed' ? 'selected' : '' ?>>
                             Terlewat
                         </option>
-                        <option value="skipped" <?= $status === 'skipped' ? 'selected' : '' ?>>
+
+                        <option value="skipped"
+                            <?= $statusFilter === 'skipped' ? 'selected' : '' ?>>
                             Dilewati
                         </option>
+
                     </select>
                 </div>
 
-                <div class="col-md-3 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-primary">
+                <div class="col-md-3 mb-3 d-flex align-items-end gap-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                    >
                         Filter
                     </button>
 
-                    <a href="medication_history.php"
-                       class="btn btn-outline-secondary">
+                    <a
+                        href="medication_history.php"
+                        class="btn btn-secondary"
+                    >
                         Reset
                     </a>
+
                 </div>
 
-            </form>
-        </div>
+            </div>
+
+        </form>
+
     </div>
 
     <!-- Tabel Riwayat -->
-    <div class="card shadow-sm">
-        <div class="card-body">
+    <div class="card">
 
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
+        <div class="mb-4">
+            <h4>Daftar Riwayat</h4>
+            <p class="text-muted mb-0">
+                Menampilkan <?= $totalHistory ?> catatan konsumsi obat.
+            </p>
+        </div>
 
-                    <thead class="table-light">
+        <?php if (empty($histories)): ?>
+
+            <div class="text-center py-5">
+
+                <h5>Belum Ada Riwayat Konsumsi</h5>
+
+                <p class="text-muted">
+                    Belum ada catatan yang sesuai dengan filter yang dipilih.
+                </p>
+
+                <a
+                    href="medication_tracking.php"
+                    class="btn btn-primary"
+                >
+                    Catat Konsumsi Obat
+                </a>
+
+            </div>
+
+        <?php else: ?>
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
                         <tr>
-                            <th>No</th>
+                            <th>Tanggal</th>
+                            <th>Waktu Jadwal</th>
                             <th>Nama Obat</th>
                             <th>Dosis</th>
-                            <th>Jadwal</th>
-                            <th>Waktu Dicatat</th>
                             <th>Status</th>
+                            <th>Waktu Dicatat</th>
                             <th>Catatan</th>
                         </tr>
                     </thead>
 
                     <tbody>
-                    <?php if (count($history) > 0): ?>
 
-                        <?php foreach ($history as $index => $item): ?>
+                        <?php foreach ($histories as $history): ?>
+
                             <tr>
-                                <td><?= $index + 1 ?></td>
 
                                 <td>
-                                    <?= htmlspecialchars($item['medicine_name']) ?>
+                                    <?= date(
+                                        'd-m-Y',
+                                        strtotime($history['scheduled_at'])
+                                    ) ?>
                                 </td>
 
                                 <td>
-                                    <?= htmlspecialchars($item['dosage']) ?>
+                                    <?= date(
+                                        'H:i',
+                                        strtotime($history['scheduled_at'])
+                                    ) ?>
+                                    WIB
                                 </td>
 
                                 <td>
-                                    <?= date('d-m-Y H:i', strtotime($item['scheduled_at'])) ?>
+                                    <strong>
+                                        <?= htmlspecialchars($history['medicine_name']) ?>
+                                    </strong>
                                 </td>
 
                                 <td>
-                                    <?= $item['taken_at']
-                                        ? date('d-m-Y H:i', strtotime($item['taken_at']))
-                                        : '-' ?>
+                                    <?= htmlspecialchars($history['dosage']) ?>
                                 </td>
 
                                 <td>
-                                    <?php
-                                    $badges = [
-                                        'taken' => 'success',
-                                        'missed' => 'danger',
-                                        'skipped' => 'warning'
-                                    ];
 
-                                    $labels = [
-                                        'taken' => 'Sudah Diminum',
-                                        'missed' => 'Terlewat',
-                                        'skipped' => 'Dilewati'
-                                    ];
-                                    ?>
+                                    <?php if ($history['status'] === 'taken'): ?>
 
-                                    <span class="badge bg-<?= $badges[$item['status']] ?>">
-                                        <?= $labels[$item['status']] ?>
-                                    </span>
+                                        <span class="status status-success">
+                                            Sudah Diminum
+                                        </span>
+
+                                    <?php elseif ($history['status'] === 'missed'): ?>
+
+                                        <span class="status status-danger">
+                                            Terlewat
+                                        </span>
+
+                                    <?php elseif ($history['status'] === 'skipped'): ?>
+
+                                        <span class="status status-warning">
+                                            Dilewati
+                                        </span>
+
+                                    <?php endif; ?>
+
                                 </td>
 
                                 <td>
-                                    <?= htmlspecialchars($item['notes'] ?? '-') ?>
+                                    <?php if (!empty($history['taken_at'])): ?>
+
+                                        <?= date(
+                                            'd-m-Y H:i',
+                                            strtotime($history['taken_at'])
+                                        ) ?>
+                                        WIB
+
+                                    <?php else: ?>
+
+                                        <span class="text-muted">-</span>
+
+                                    <?php endif; ?>
                                 </td>
+
+                                <td>
+                                    <?= !empty($history['notes'])
+                                        ? htmlspecialchars($history['notes'])
+                                        : '<span class="text-muted">-</span>' ?>
+                                </td>
+
                             </tr>
+
                         <?php endforeach; ?>
 
-                    <?php else: ?>
-
-                        <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
-                                Belum ada riwayat konsumsi obat.
-                            </td>
-                        </tr>
-
-                    <?php endif; ?>
                     </tbody>
 
                 </table>
+
             </div>
 
-        </div>
+        <?php endif; ?>
+
+    </div>
+
+    <div class="mt-4">
+        <a
+            href="dashboard.php"
+            class="btn btn-secondary"
+        >
+            Kembali ke Dashboard
+        </a>
     </div>
 
 </div>
 
-</body>
-</html>
+<?php require_once "../includes/footer.php"; ?>
