@@ -28,6 +28,9 @@ $name = htmlspecialchars($_SESSION['name']);
     Kelola Data Obat
 </a>
         <li><a href="#">Jadwal Konsumsi</a></li>
+        <a href="schedules.php" class="btn btn-primary">
+    Kelola Jadwal Obat
+</a>
         <li><a href="#">Riwayat Pengobatan</a></li>
     </ul>
 
