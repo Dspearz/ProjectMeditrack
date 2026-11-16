@@ -16,6 +16,12 @@ $stmt->execute([$user_id]);
 $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
+<?php if (isset($_GET['success']) && $_GET['success'] === 'updated'): ?>
+    <div class="alert alert-success">
+        Data obat berhasil diperbarui!
+    </div>
+<?php endif; ?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
